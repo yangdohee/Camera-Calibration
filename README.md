@@ -1,8 +1,15 @@
 # Camera-Calibration
+- introduce
 The program utilizes OpenCV to implement camera calibration and distortion correction. It can analyze images with checkboard patterns to calculate the camera's internal parameters and distortion coefficients, and correct distortion
 
 
-##  Camera Calibration & Distortion Correction
+##  program code 기능
+- OpenCV를 활용하여 **카메라 캘리브레이션**과 **왜곡 보정(Undistortion)** 을 수행합니다.  
+입력 영상으로부터 체크보드 패턴을 감지하고, 이를 기반으로 내부 파라미터를 계산하여 영상의 왜곡을 제거합니다.
+
+
+---
+
 
 ### 사용한 데이터 
 
@@ -15,33 +22,89 @@ The program utilizes OpenCV to implement camera calibration and distortion corre
 
 - 다양한 각도에서 촬영한 체스보드 프레임들에서 내부 코너점 검출
 - `cv2.calibrateCamera()`를 통해 내 카메라의 **내부 파라미터 행렬**, **왜곡 계수** 등을 추정
+  
+#### 1-1. 체스보드 코너 검출
 
-####  Calibration 결과 _(직접 코드에서 복사해서 채워주세요)_
+- 입력 영상 프레임을 순차적으로 읽으며, 매 **5프레임마다** 체스보드 코너를 탐지 (`cv2.findChessboardCorners`)
+- 검출 성공 시:
+  - 실제 체스보드의 3D 좌표 (`objpoints`)
+  - 이미지 상의 2D 코너 좌표 (`imgpoints`)를 저장
+  - 코너 정밀도 향상을 위해 `cv2.cornerSubPix` 사용
 
-| 항목 | 값 |
-|------|----|
-| **fx, fy (focal length)** | 예: `mtx[0, 0]`, `mtx[1, 1]` |
-| **cx, cy (principal point)** | 예: `mtx[0, 2]`, `mtx[1, 2]` |
-| **왜곡 계수 (k1, k2, p1, p2, k3)** | `dist.flatten()` |
-| **RMSE (재투영 오차)** | `ret` 값 |
+#### 1-2. 내부 파라미터 추정
 
-> 실제 결과는 `calibration_result.npz`에 저장됨.  
+- `cv2.calibrateCamera()` 호출:
+  - **Camera Matrix (`mtx`)**
+  - **Distortion Coefficients (`dist`)**
+  - **회전 벡터 (`rvecs`)**
+  - **이동 벡터 (`tvecs`)**
+
+#### 1-3. 재투영 오차 (RMSE) 계산
+
+- `cv2.projectPoints()`를 통해 예측된 코너 위치와 실제 이미지상의 코너 위치 비교
+- 평균 재투영 오차(RMSE) 출력 → 보정 정확도 판단
+
+#### 1-4. 결과 저장
+
+- 카메라 파라미터는 `calibration_result.npz`에 저장
+
+
+#  Calibration 결과 
+## 1. Camera Matrix (내부 파라미터)
+
+| 파라미터 | 설명 | 값 |
+|----------|------|-----|
+| fx       | 초점 거리 (x 방향) | 819.1333 |
+| fy       | 초점 거리 (y 방향) | 787.4159 |
+| cx       | 주점의 x 좌표      | 459.2465 |
+| cy       | 주점의 y 좌표      | 363.4292 |
 
 ---
 
-###  Step 2. Lens Distortion Correction
-
-- 얻은 파라미터를 기반으로 `cv2.undistort()` 수행
+- 이후 `cv2.undistort()` 수행
 - **렌즈의 왜곡을 제거한 보정 영상**을 생성
+  
+## 2. Distortion Coefficients (왜곡 계수)
 
-####  결과 파일
+#### 2-1. 보정용 카메라 행렬 생성
+
+- `cv2.getOptimalNewCameraMatrix()` 사용
+  - 입력 영상 크기 및 왜곡 계수를 기반으로 보정된 카메라 행렬 생성
+
+#### 2-2. 프레임 왜곡 제거
+
+- 영상의 각 프레임에 대해 `cv2.undistort()` 사용
+- 보정된 결과를 `undistorted_output.avi`에 저장
+- 첫 번째 프레임은 비교용 이미지로 저장
+  - `original_frame.jpg` (보정 전)
+  - `undistorted_frame.jpg` (보정 후)
+
+
+| 계수 | 의미 | 값 |
+|------|------|------|
+| k1   | 방사 왜곡 계수 1차 | 0.3517 |
+| k2   | 방사 왜곡 계수 2차 | -2.1881 |
+| p1   | 접선 왜곡 계수 1차 | 0.00095 |
+| p2   | 접선 왜곡 계수 2차 | -0.0474 |
+| k3   | 방사 왜곡 계수 3차 | 6.3331 |
+
+---
+
+## 3. RMSE (Root Mean Square Error)
+
+- **정확도 지표로, 작을수록 보정이 잘된 것**
+
+- ### RMSE  :  0.10401189718603736  
+---
+
+## 4. 생성된 파일
 
 | 파일명 | 설명 |
 |--------|------|
-| `undistorted_output.avi` | 왜곡이 보정된 결과 영상 |
-| `original_frame.jpg` | 원본 영상의 첫 프레임 |
-| `undistorted_frame.jpg` | 보정된 영상의 첫 프레임 |
-| `calibration_result.npz` | 보정에 사용된 파라미터 저장 파일 |
+| `calibration_result.npz` | Camera Matrix 및 Distortion Coefficients 저장 |
+| `undistorted_output.avi` | 왜곡 보정된 결과 영상 |
+| `original_frame.jpg` | 원본 첫 프레임 이미지 |
+| `undistorted_frame.jpg` | 보정된 첫 프레임 이미지 |
 
 ---
 
@@ -51,7 +114,7 @@ The program utilizes OpenCV to implement camera calibration and distortion corre
 - OpenCV 함수:
   - `cv2.findChessboardCorners()`
   - `cv2.calibrateCamera()`
-  - `cv2.undistort()`
+  - `cv2.undistort()` : 왜곡 보정
 
 ---
 
@@ -61,16 +124,24 @@ The program utilizes OpenCV to implement camera calibration and distortion corre
 - 총 74개의 프레임에서 체크보드 검출 성공
 
 ---
-## 원본 동영상
+
+## 동영상
 #### before
-- https://github.com/user-attachments/assets/87e6ffe1-918b-4b99-9ba3-fcb4e0f02a00
+
 #### after
 
 --- 
-#### 전 후 사진 비교 
- - ![미리보기 이미지](original_frame/cvdata.jpg)
- - ![미리보기 이미지](undistorted_frame/cvdata.jpg)
-## calibrataion_result.npz
--
+#### 이미지로 전 후 비교 
+  ![미리보기 이미지](cvdata/original_frame.jpg)
+  ![미리보기 이미지](cvdata/undistorted_frame.jpg)
 
+---
+import numpy as np
+
+data = np.load('calibration_result.npz')
+print("Camera Matrix:\n", data['mtx'])
+print("Distortion Coefficients:\n", data['dist'])
+
+- 위의 코드를 통해 .npz 파일을 열어 calibration 결과 확인함
+---
 
