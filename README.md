@@ -128,7 +128,15 @@ The program utilizes OpenCV to implement camera calibration and distortion corre
 ## 동영상
 #### before
 
+
+https://github.com/user-attachments/assets/b4c7ad92-c350-4654-b8ef-56533b6cef72
+
+
 #### after
+
+
+https://github.com/user-attachments/assets/f759f41f-42ce-46e6-8c3f-1146ef27d1f4
+
 
 --- 
 #### 이미지로 전 후 비교 
